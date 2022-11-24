@@ -36,8 +36,7 @@ class Salary:
     def get_middle_salary_rub(self):
         percent = self.__currency_to_rub[self.salary_currency]
         salary_from = int(float(self.salary_from))
-        salary_to = int(float(self.salary_to))
-        return (salary_from + salary_to) * percent // 2
+        return (salary_from + int(float(self.salary_to))) * percent // 2
 
 
 class Vacancy:
