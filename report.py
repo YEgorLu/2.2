@@ -1,6 +1,5 @@
 import re
-from typing import Tuple, List
-
+from typing import Tuple, List, Dict
 from openpyxl import Workbook
 from openpyxl.styles import Font, Border, Side
 from openpyxl.utils import get_column_letter
@@ -12,8 +11,21 @@ import os.path as pth
 
 
 class Report:
-    def __init__(self, salary_by_city, count_by_city, salary_by_year, count_by_year, prof_salary_by_year,
-                 prof_count_by_year, prof_name: str):
+    """Класс, формирующий отчеты из данных по вакансиям"""
+    def __init__(self, salary_by_city: Dict[str, int], count_by_city: Dict[str, int], salary_by_year: Dict[str, int],
+                 count_by_year: Dict[str, int], prof_salary_by_year: Dict[str, int],
+                 prof_count_by_year: Dict[str, int], prof_name: str):
+        """Инициализирует объект Report
+
+            Args:
+                salary_by_city (Dict[str, int]): З\п по городам
+                count_by_city (Dict[str, int]): Количество вакансий по гродам
+                salary_by_year (Dict[str, int]): З\п по годам
+                count_by_year (Dict[str, int]): Количество вакансий по годам
+                prof_salary_by_year (Dict[str, int]): З\п по професси по годам
+                prof_count_by_year (Dict[str, int]): Количество вакансий по профессии по годам
+                prof_name (str): Профессия
+        """
         self.__salary_by_city = salary_by_city
         self.__count_by_city = count_by_city
         self.__salary_by_year = salary_by_year
@@ -34,6 +46,7 @@ class Report:
         self.__third_table_header, self.__third_table = self.__generate_cities_vacancy_table()
 
     def generate_excel(self):
+        """Создает excel файл с таблицами по пути report/report.xlsx"""
         wk = Workbook()
         dest_filename = pth.relpath(pth.join('report', 'report.xlsx'))
         ws = wk.worksheets[0]
@@ -60,7 +73,8 @@ class Report:
         if check_file('xlsx', dest_filename):
             wk.save(filename=dest_filename)
 
-    def generate_image(self):
+    def generate_image(self) -> None:
+        """Создает изображение графиков по пути report/graph.png"""
         self.__generate_salary_diagram()
         self.__generate_vacancy_diagram()
         self.__generate_hor()
@@ -69,7 +83,12 @@ class Report:
         if check_file('png', save_path):
             plt.savefig(save_path)
 
-    def generate_pdf(self, wkhtml_path: str):
+    def generate_pdf(self, wkhtml_path: str) -> None:
+        """Создает pdf файл по пути report/report.pdf с помощью таблиц и шаблона по пути template/template.html
+
+            Args:
+                wkhtml_path (str): Путь к модулю wkghtml
+        """
         env = Environment(loader=FileSystemLoader('.'))
         template = env.get_template('template/template.html')
 
@@ -92,6 +111,22 @@ class Report:
                                options={"enable-local-file-access": ""})
 
     def __generate_years_table(self) -> (Tuple[str, str, str, str, str], List[Tuple[int, int, int, int, int]]):
+        """Создает заголовок и генератор строк для количества вакансий и з\п по вакансиям и профессии по годам.
+
+                    Returns:
+                        Tuple[
+                            Tuple[str, str, str, str, str]: Заголовок,
+                            List[
+                                Tuple[
+                                    int: Год,
+                                    int: З\п по годам,
+                                    int: З\п по годам для профессии,
+                                    int: Количество вакансий по годам,
+                                    int: Количество вакансий по годам для профессии
+                                ]: Строка таблицы
+                            ]
+                        ]
+                """
         fth = ('Год', 'Средняя зарплата', f'Средняя зарплата - {self.__prof_name}', 'Количество вакансий',
                f'Количество вакансий - {self.__prof_name}')
         years = {k: k for k in self.__count_by_year.keys()}
@@ -100,22 +135,56 @@ class Report:
         return fth, ft
 
     def __generate_cities_salary_table(self) -> (Tuple[str, str], List[Tuple[str, float]]):
+        """Создает заголовок и генератор строк для таблицы зарплат по городам
+
+            Returns:
+                Tuple[Tuple[str, str]: Заголовок, List[
+                    Tuple[\n
+                        Tuple[\n
+                        str: Город,\n
+                        float: З\п\n
+                    ]: Строка таблицы\n
+                    ]
+                ]
+        """
         sth = 'Город', 'Уровень зарплат'
         st = [(city, self.__salary_by_city[city]) for city in self.__salary_by_city]
         return sth, st
 
     def __generate_cities_vacancy_table(self) -> (Tuple[str, str], List[Tuple[str, int]]):
+        """Создает заголовок и генератор строк для таблицы долей вакансий по городам
+
+            Returns:
+                Tuple[Tuple[str, str]: Заголовок, List[
+                    Tuple[\n
+                        Tuple[\n
+                        str: Город,\n
+                        int: Доля вакансий\n
+                    ]: Строка таблицы\n
+                    ]
+                ]
+        """
         tth = 'Город', 'Доля вакансий'
         tt = [(city, self.__count_by_city[city]) for city in self.__count_by_city]
         return tth, tt
 
     def __style_header(self, worksheet: Worksheet) -> None:
+        """Применяет стили шрифта и рамки для главной строки таблицы
+
+            Args:
+                worksheet (Worksheet): Страница excell
+        """
         for header in worksheet.iter_rows(min_row=1, max_row=1):
             for cell in header:
                 cell.font = self.__font
                 cell.border = self.__border
 
     def __style_cells(self, worksheet: Worksheet) -> None:
+        """Применяет рамку и устанавливает ширину по максимално широкой ячейке для каждого столбца
+
+            Args:
+                worksheet (Worksheet): Страница excell
+        """
         dims = []
         for column in worksheet.columns:
             max_width = 0
@@ -129,18 +198,26 @@ class Report:
             worksheet.column_dimensions[get_column_letter(i + 1)].width = width
 
     def __style_percent_column(self, worksheet: Worksheet, col_index: int) -> None:
+        """Применяет ко всем ячейкам столбца стиль процентный с двумя знаками после запятой
+
+            Args:
+                worksheet (Worksheet): Страница excell
+                col_index (int): Индекс столбца
+        """
         for column in worksheet.iter_cols(col_index):
             for cell in column:
                 cell.style = 'Percent'
                 cell.number_format = '0.00%'
 
     def __generate_pie(self):
+        """Создает круговую диаграмму с распределением долей вакансий по городам в четвертом окне"""
         ax = self.__axs[1, 1]
         data = {'Другие': 1 - sum(self.__count_by_city.values()), **self.__count_by_city}
         ax.pie(list(data.values()), labels=list(data.keys()), textprops={'fontsize': 6})
         ax.set_title('Доля вакансий по городам', fontsize=20)
 
     def __generate_hor(self):
+        """Создает горизонтальную диаграмму с зарплатами по топ-10 городам в третьем окне"""
         ax = self.__axs[1, 0]
         y_pos = range(len(self.__salary_by_city.keys()))
         cities = list(self.__salary_by_city.keys())
@@ -158,6 +235,7 @@ class Report:
         ax.grid(axis='x')
 
     def __generate_salary_diagram(self):
+        """Создает диаграмму з\п по годам в первом окне"""
         ax = self.__axs[0, 0]
         ax.set_title('Уровень зарплат по годам', fontsize=20)
         y_pos = range(len(self.__salary_by_year.keys()))
@@ -173,6 +251,7 @@ class Report:
         ax.grid(axis='y')
 
     def __generate_vacancy_diagram(self):
+        """Создает диаграмму количества вакансий по годам во втором окне"""
         ax = self.__axs[0, 1]
         y_pos = range(len(self.__count_by_year.keys()))
         years = list(self.__count_by_year.keys())
@@ -188,8 +267,17 @@ class Report:
         ax.grid(axis='y')
 
 
-
 def check_file(ext: str, dir_name: str) -> bool:
+    """Проверяет, что названия файла имеет правильное расширение, в качестве пути к файлу передана строка,
+        папка для файла существует и что файла с таким именем не существует
+
+        Args:
+            ext (str): Расширение файла
+            dir_name (str): Путь, куда нужно сохранить файл
+
+        Returns:
+            bool: Да, если путь и расширение валидны
+    """
     if not isinstance(dir_name, str):
         raise TypeError('')
     if not pth.basename(dir_name).endswith(f".{ext}"):

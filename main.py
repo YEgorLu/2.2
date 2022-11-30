@@ -1,18 +1,23 @@
 import csv
 import datetime
-import inspect
 import os.path
 import re
 from enum import Enum, IntEnum
-from typing import List, Dict, Callable, Iterable
+from typing import List, Dict, Callable, Iterable, Tuple
 from itertools import groupby
-
 from prettytable import PrettyTable
-
 import report
 
 
 class Salary:
+    """Класс для представления зарплаты.
+
+    Attributes:
+        salary_from (str): Нижняя граница з\п
+        salary_to (str): Верхняя граница з\п
+        salary_currency (str): Валюта
+        salary_gross (str or None): З\п с учетом налогов или нет
+    """
     __currency_to_rub = {
         "AZN": 35.68,
         "BYR": 23.91,
@@ -28,45 +33,81 @@ class Salary:
 
     def __init__(self, salary_from: List[str], salary_to: List[str], salary_currency: List[str],
                  salary_gross: List[str]):
+        """Инициализирует объект Salary. Принимает значения в виде массивов из одного элемента, и берет этот элемент.
+
+        Args:
+            salary_from (List[str]): Нижняя граница з\п
+            salary_to (List[str]): Верхняя граница з\п
+            salary_currency (List[str]): Валюта
+            salary_gross (List[str] or None): З\п с учетом налогов или нет
+        """
         self.salary_from = salary_from[0]
         self.salary_to = salary_to[0]
         self.salary_currency = salary_currency[0]
         self.salary_gross = salary_gross[0] if salary_gross is not None else None
 
-    def get_middle_salary_rub(self):
+    def get_middle_salary_rub(self) -> int:
+        """Вычисляет средную зарплату на вакансии и переводит в рубли с округлением.
+
+            Returns:
+                int: Средняя зарплата в рублях.
+
+        """
         percent = self.__currency_to_rub[self.salary_currency]
-<<<<<<< HEAD
         salary_to = int(float(self.salary_to))
         return (int(float(self.salary_from)) + salary_to) * percent // 2
-=======
-        salary_from = int(float(self.salary_from))
-        return (salary_from + int(float(self.salary_to))) * percent // 2
->>>>>>> develop
 
+    def format_salary(self) -> str:
+        """Приводит финансовую информацию к строке вида {от} - {до} ({валюта}) ({налог})
 
-class Vacancy:
-    def __init__(self, name: List[str], area_name: List[str], published_at: List[str], salary_from: List[str],
-                 salary_to: List[str],
-                 salary_currency: List[str], premium: List[str] = None, experience_id: List[str] = None,
-                 description: List[str] = None,
-                 key_skills: List[str] = None,
-                 employer_name: List[str] = None, salary_gross: List[str] = None, **not_needed):
-        self.name = name[0]
-        self.salary = Salary(salary_from, salary_to, salary_currency, salary_gross)
-        self.area_name = area_name[0]
-        self.published_at = published_at[0]
-        self.year = published_at[0].split('-')[0]
-        self.premium = premium[0] if premium is not None else None
-        self.experience_id = experience_id[0] if experience_id is not None else None
-        self.description = description[0] if description is not None else None
-        self.key_skills = key_skills if key_skills is not None else None
-        self.employer_name = employer_name[0] if employer_name is not None else None
+            Returns:
+                str: Строка с полной финансовой информацией
+        """
+        gross_str = 'Без вычета налогов' if self.salary_gross.lower() == 'true' else 'С вычетом налогов'
+        s_from = self.__format_salary_amount(self.salary_from)
+        s_to = self.__format_salary_amount(self.salary_to)
+        return f'{s_from} - {s_to} ({Translators.Currency[self.salary_currency].value}) ({gross_str})'
+
+    def __format_salary_amount(self, salary: int or float or str) -> str:
+        """Приводит з\п к виду xxx xxx xxx
+
+            Returns:
+                str: з\п с округленная з\п с пробелами через каждые три знака
+        """
+        return "{:,}".format(int(float(salary))).replace(',', ' ')
 
 
 class VacancyForTable:
+    """Класс для удобного для вывода таблицы представления данных о вакансии.
+
+        Attributes:
+            name (str): Название вакансии
+            salary (str): Строка с нижней и верхнец границами з\п и валютой
+            area_name (str): Город
+            date (str): Дата публикации в полном формате
+            premium (str): Премиум-вакансия или нет
+            work_experience (str): Требуемый опыт работы
+            description (str): Описание вакансии
+            key_skills (List[str]): Навыки, необходимые для работы
+            employer_name (str): Название компании-работодателя
+    """
+
     def __init__(self, name: str, description: str, salary: str, key_skills: List[str], employer_name: str,
                  area_name: str,
                  premium: str, work_experience: List[str], date: str, **not_needed):
+        """Инициализирует объект VacancyForTable. Принимает значения и сохраняет их без изменений.
+
+                    Args:
+                        name (str): Название вакансии
+                        salary (str): Строка с нижней и верхнец границами з\п и валютой
+                        date (str): Дата публикации в полном формате
+                        premium (str): Премиум-вакансия или нет
+                        work_experience (str): Код требуемого опыта работу
+                        description (str): Описание вакансии
+                        key_skills (List[str]): Навыки, необходимые для работы
+                        employer_name (str): Название компании-работодателя
+                        area_name (str): Город
+                """
         self.name = name
         self.description = description
         self.key_skills = key_skills
@@ -78,65 +119,108 @@ class VacancyForTable:
         self.date = date
 
 
-class Formatter:
-    @staticmethod
-    def format_row(row: Vacancy) -> VacancyForTable:
-        premium = 'Да' if row.premium.lower() == 'true' else 'Нет'
-        salary = Formatter.format_salary(row.salary.salary_from, row.salary.salary_to, row.salary.salary_currency,
-                                         row.salary.salary_gross)
-        work_experience = Translators.WorkExperience[row.experience_id].value
-        date = Formatter.parse_date(row.published_at)
+class Vacancy:
+    """Класс для представления данных о вакансии.
+
+        Attributes:
+            name (str): Название вакансии
+            salary (Salary): Финансовая информация о вакансии
+            area_name (str): Город
+            published_at (str): Дата публикации в полном формате
+            year (str): Год публикации
+            premium (str): Премиум-вакансия или нет
+            experience_id (str): Код требуемого опыта работу
+            description (str or None): Описание вакансии
+            key_skills (List[str] or None): Навыки, необходимые для работы
+            employer_name (str or None): Название компании-работодателя
+        """
+
+    def __init__(self, name: List[str], area_name: List[str], published_at: List[str], salary_from: List[str],
+                 salary_to: List[str],
+                 salary_currency: List[str], premium: List[str] = None, experience_id: List[str] = None,
+                 description: List[str] = None,
+                 key_skills: List[str] = None,
+                 employer_name: List[str] = None, salary_gross: List[str] = None, **not_needed):
+        """Инициализирует объект Vacancy. Принимает значения в виде массивов из одного элемента, и берет этот элемент.
+
+            Args:
+                name (List[str]): Название вакансии
+                salary (Salary): Финансовая информация о вакансии
+                area_name (List[str]): Город
+                published_at (List[str]): Дата публикации в полном формате
+                year (List[str]): Год публикации
+                premium (List[str]): Премиум-вакансия или нет
+                experience_id (List[str]): Код требуемого опыта работу
+                description (List[str] or None): Описание вакансии
+                key_skills (List[str] or None): Навыки, необходимые для работы
+                employer_name (List[str] or None): Название компании-работодателя
+                salary_from (List[str]): Нижняя граница з\п
+                salary_to (List[str]): Верхняя граница з\п
+                salary_currency (List[str]): Валюта
+                salary_gross (List[str] or None): З\п с учетом налогов или нет
+        """
+        self.name = name[0]
+        self.salary = Salary(salary_from, salary_to, salary_currency, salary_gross)
+        self.area_name = area_name[0]
+        self.published_at = published_at[0]
+        self.year = published_at[0].split('-')[0]
+        self.premium = premium[0] if premium is not None else None
+        self.experience_id = experience_id[0] if experience_id is not None else None
+        self.description = description[0] if description is not None else None
+        self.key_skills = key_skills if key_skills is not None else None
+        self.employer_name = employer_name[0] if employer_name is not None else None
+
+    def transform_for_table(self) -> VacancyForTable:
+        """Преобразует объект Vacancy в удобный для печати объект VacancyForTable
+
+            Returns:
+                VacancyForTable: Преобразованная для таблицы вакансия
+        """
+        premium = 'Да' if self.premium.lower() == 'true' else 'Нет'
+        salary = self.salary.format_salary()
+        work_experience = Translators.WorkExperience[self.experience_id].value
+        date = self.__parse_date()
 
         return VacancyForTable(
-            name=row.name,
-            description=row.description,
-            key_skills=row.key_skills,
+            name=self.name,
+            description=self.description,
+            key_skills=self.key_skills,
             work_experience=work_experience,
             premium=premium,
-            employer_name=row.employer_name,
+            employer_name=self.employer_name,
             salary=salary,
-            area_name=row.area_name,
+            area_name=self.area_name,
             date=date
         )
-        # {
-        #     'Название': row['name'],
-        #     'Описание': row['description'],
-        #     'Навыки': row['key_skills'],
-        #     'Опыт работы': [work_experience],
-        #     'Премиум-вакансия': [premium],
-        #     'Компания': row['employer_name'],
-        #     'Оклад': [salary],
-        #     'Название региона': row['area_name'],
-        #     'Дата публикации вакансии': [date],
-        # }
 
-    @staticmethod
-    def format_salary(salary_from: str, salary_to: str, currency: str, gross: str) -> str:
-        gross_str = 'Без вычета налогов' if gross.lower() == 'true' else 'С вычетом налогов'
-        s_from = Formatter.__format_salary_amount(salary_from)
-        s_to = Formatter.__format_salary_amount(salary_to)
-        return f'{s_from} - {s_to} ({Translators.Currency[currency].value}) ({gross_str})'
+    def __parse_date(self) -> str:
+        """Превращает timestamp в строку формата {день.месяц.год}
 
-    @staticmethod
-    def __format_salary_amount(salary: int or float or str) -> str:
-        return "{:,}".format(int(float(salary))).replace(',', ' ')
-
-    @staticmethod
-    def parse_date(date: str) -> str:
-        year, month, day = date \
+            Returns:
+                str: Строка формата {день.месяц.год}
+        """
+        year, month, day = self.published_at \
             .split('T')[0] \
             .split('-')
         return f'{day}.{month}.{year}'
 
 
 class Translators:
+    """Класс, предоставляющий Enum'ы и словари для конвертирования опыта и валюты
+
+        Attributes:
+            currency_to_rub Dict[str, int]: Ключ - валюта, значение - количество рублей в единице валюты
+    """
+
     class WorkExperience(Enum):
+        """Enum, переводящий код опыта в нормальную строку"""
         noExperience = "Нет опыта"
         between1And3 = "От 1 года до 3 лет"
         between3And6 = "От 3 до 6 лет"
         moreThan6 = "Более 6 лет"
 
     class WorkExperienceSorted(IntEnum):
+        """IntEnum, предоставляет номер приоритетов опыта для сортировки"""
         noExperience = 0
         between1And3 = 1
         between3And6 = 2
@@ -156,6 +240,7 @@ class Translators:
     }
 
     class Currency(Enum):
+        """Enum, переводящий трехбуквенный код валюты в нормальную строку"""
         AZN = "Манаты"
         BYR = "Белорусские рубли"
         EUR = "Евро"
@@ -169,15 +254,18 @@ class Translators:
 
 
 class Utils:
-    @staticmethod
-    def p_salary(row: Vacancy) -> int:
-        percent = Translators.currency_to_rub[row.salary.salary_currency]
-        salary_from = int(float(row.salary.salary_from))
-        salary_to = int(float(row.salary.salary_to))
-        return (salary_from + salary_to) * percent // 2
+    """Класс, предоставляющий различные методы, такие как методы для сортировки и фильтрации вакансий."""
 
     @staticmethod
     def filter(filter_name: str) -> Callable:
+        """Возвращает функцию фильтрации, исходя из переданного столбца.
+
+            Args:
+                filter_name (str): Название столбца, который нужно отфильтровать
+
+            Returns:
+                Callable: Функция фильтрации данного столбца
+        """
         filters = {
             'Навыки': lambda name, row: all(x in row.key_skills for x in name),
             'Оклад': lambda salary, row: int(float(row.salary.salary_from)) <= int(salary) <= int(
@@ -198,14 +286,30 @@ class Utils:
 
     @staticmethod
     def can_aggregate(key: str) -> bool:
+        """Функция, определяющая, является ли переданное название столбца столбцом таблицы.
+
+            Args:
+                key (str): Название столбца
+
+            Returns:
+                bool: Данный столбец есть в таблице
+        """
         return key in ['Навыки', 'Оклад', 'Дата публикации вакансии', 'Опыт работы', 'Премиум-вакансия',
                        'Идентификатор валюты оклада', 'Название', 'Название региона', 'Компания', 'Описание']
 
     @staticmethod
     def sort(sort_name: str) -> Callable:
+        """Метод, возвращающий функцию сортировки переданного столбца.
+
+            Args:
+                sort_name (str): Название столбца
+
+            Returns:
+                Callable: Функция сортировки данного столбца
+        """
         sorts = {
             'Навыки': lambda row: len(row.key_skills),
-            'Оклад': Utils.p_salary,
+            'Оклад': lambda row: row.salary.get_middle_salary_rub(),
             'Дата публикации вакансии': lambda row: datetime.datetime.strptime(row.published_at,
                                                                                '%Y-%m-%dT%H:%M:%S%z').timestamp(),
             'Опыт работы': lambda row: Translators.WorkExperienceSorted[row.experience_id],
@@ -220,8 +324,25 @@ class Utils:
 
 
 class InputConnect:
+    """Класс для чтения"""
+
     @staticmethod
-    def get_vacs(grouped: Iterable, by_year: bool = True, need_div: bool = True, default: Dict = None):
+    def get_vacs(grouped: groupby, by_year: bool = True, need_div: bool = True, default: Dict = None) -> Tuple[
+        Dict[str, int], Dict[str, int]]:
+        """Сортирует вакансии по количеству и по з\п и возвращает соответствующие словари
+
+            Args:
+                grouped (Iterable): Сгруппированный по городу или году итератор вакансий
+                by_year (bool): Да, если группировка по годам
+                need_div (bool): Да, если нужно вычислять среднюю з\п
+                default (Dict): Значения, которые нужно добавить в начале. Используется для того, чтобы проставить года.
+
+            Returns:
+                Tuple[\n
+                    Dict[str, int]: Словарь средних зарплат по городам (need_div = False => суммы зарплат)\n
+                    Dict[str, int]: Словарь количества вакансий по городам\n
+                ]
+        """
         by_count = {}
         by_salary = {}
         if default is not None:
@@ -247,7 +368,15 @@ class InputConnect:
         return by_count, by_salary
 
     @staticmethod
-    def clear_by_city(salary_by_city, vacancies_by_city, all_count):
+    def clear_by_city(salary_by_city: Dict[str, int], vacancies_by_city: Dict[str, float], all_count: int) -> None:
+        """Метод берет распределения зарплат и вакансий по городам. Вычисляет средние зарплаты по городам. Вычисляет
+        долю вакансий из всех для каждого города. Города, у которых доля вакансий меньше 0.01 не учитываются
+
+            Args:
+                salary_by_city (Dict[str, int]): Суммарные зарплаты по городам
+                vacancies_by_city (Dict[str, float]): Количество вакансий по городам
+                all_count (int): Общее количество вакансий
+        """
         for city in salary_by_city:
             salary = salary_by_city[city]
             salary_by_city[city] = int(salary // vacancies_by_city[city])
@@ -267,7 +396,19 @@ class InputConnect:
 
     @staticmethod
     def print_table(read_csv: Callable) -> Callable:
+        """Декоратор. Возвращает функцию для вывода таблицы в консоль, если введено 'Вакансии', или функцию
+        для создания файлов, если введено 'Статистика'
+
+            Args:
+                read_csv (Callable): функция, возвращающая итератор по вакансиям
+
+            Returns:
+                Callable: Функция для вывода данных по вакансиям
+        """
+
         def table(self) -> None:
+            """Печатает таблицу вакансий в консоль. Перед этим принимает с консоли параметры и проверяет
+            их на валидность"""
             csv_generator = read_csv(self)
             header = next(csv_generator)
 
@@ -297,6 +438,7 @@ class InputConnect:
                 print(self._DataSet__table.get_string(start=start, end=end, fields=fields))
 
         def file(self) -> None:
+            """Создает файлы graph.png, report.pdf, report.xlsx в папке report."""
             csv_generator = read_csv(self)
             next(csv_generator)
             prof_name = input('Введите название профессии: ')
@@ -342,7 +484,15 @@ class InputConnect:
 
 
 class DataSet:
+    """Класс, который может читать csv файлы с вакансиями и хранить данные о них.
+
+        Attributes:
+            file_name (str): Относительный путь к обрабатываемому файлу
+            vacancies_objects (List[Vacancy]): Список считанных вакансий
+    """
+
     def __init__(self):
+        """Инициализирует объект DataSet."""
         self.file_name = None
         self.vacancies_objects: List[Vacancy] = []
         self.__RE_ALL_HTML = re.compile(r'<.*?>')
@@ -356,6 +506,11 @@ class DataSet:
 
     @InputConnect.print_table
     def read_csv(self) -> Vacancy or []:
+        """Генератор. Возвращает вакансии типа Vacancy для каждой строки из csv файла.
+
+            Returns:
+                Iterator[Vacancy]: Итератор по вакансиям из csv файла
+        """
         self.file_name = input('Введите название файла: ')
         with open(self.file_name, encoding="utf-8") as file:
             header = []
@@ -381,28 +536,68 @@ class DataSet:
                 return []
 
     def __prepare_for_table(self, fields: List[Vacancy], filter_name: str, filter_value: str,
-                            sort_query: str, sort_reverse: bool) -> str:
+                            sort_query: str, sort_reverse: bool) -> None:
+        """Применяет требуемые фильтр и сортировку к списку вакансий и добавляет их в таблицу
+
+            Args:
+                fields (List[Vacancy]): Список вакансий
+                filter_name (str): Поле, по которому идет фильтрация
+                filter_value (str): Значение поля, по которому идет фильтрация
+                sort_query (str): Поле, по которому идет сортировка
+                sort_reverse (bool): Сортировка по возрастанию или убыванию
+        """
         index = 0
         if filter_name != '':
             fields = list(filter(lambda x: Utils.filter(filter_name)(filter_value, x), fields))
         if sort_query != '':
             fields = sorted(fields, key=Utils.sort(sort_query), reverse=sort_reverse)
-        fields = map(Formatter.format_row, fields)
+        fields = map(lambda v: v.transform_for_table(), fields)
         for field in fields:
             index += 1
             self.__table.add_row(
                 [str(index)] + [self.__trim_row(self.__transform_skill(k, v)) for k, v in field.__dict__.items()])
-        return ""
 
     @staticmethod
     def __transform_skill(k: str, v: List[str]) -> str:
+        """Возвращает поле 'key_skills', в котором навыки соединены по строкам, или само поле без изменений
+
+            Args:
+                k (str): Поле
+                v (List[str]) Значение поля
+
+            Returns:
+                str: поле 'key_skills', в котором навыки соединены по строкам
+        """
         return '\n'.join(v) if k == 'key_skills' else v
 
     @staticmethod
     def __trim_row(row: str) -> str:
+        """Обрезает строку, если ее длина больше 100 и добавляет троеточие.
+
+            Args:
+                row (str): Строка, которую нужно сократить
+
+            Returns:
+                str: Строка не длиннее 100 символов + '...'
+        """
         return row if len(row) <= 100 else row[:100] + '...'
 
     def __get_inputs(self) -> (str, str, str, bool, int, int or None, List[str], str):
+        """Берет с консоли параметры для сортировки и фильтрации, проверяет их на валидность, и возвращает их и
+        сообщение об ошибке последним элементом, если параметры не валидные.
+
+            Returns:
+                tuple[\n
+                str: Поле, по которому нужно провести фильтрацию\n
+                str: Значение поля для фильтрации\n
+                str: Поле, по которому нужно провести сортировку\n
+                bool: Сортировка по возрастанию или нет\n
+                int: Начальный индекс вакансий для показа\n
+                int or None: Конечный индекс вакансий для показа или до конца\n
+                List[str]: Столбцы, которые необходимо вывести\n
+                str: Сообщение об ошибке\n
+                ]
+        """
         filter_query = input('Введите параметр фильтрации: ')
         sort_query = input('Введите параметр сортировки: ')
         sort_reverse_query = input('Обратный порядок сортировки (Да / Нет): ')
@@ -420,6 +615,14 @@ class DataSet:
         return filter_name, filter_value, sort_query, sort_reverse, start, end, fields, err_msg
 
     def __prepend_fields(self, fields: List[str]) -> List[str]:
+        """Проверяет, что введенные столбцы есть в таблице, иначе ставит значение по умолчанию
+
+            Args:
+                fields (List[str]): Введенные столбцы
+
+            Returns:
+                List[str]: Столбцы для вывода
+        """
         if fields[0] == '' or any(filter(lambda field: field not in self.__header_for_table, fields)):
             fields = self.__header_for_table
         else:
@@ -427,6 +630,18 @@ class DataSet:
         return fields
 
     def __prepend_rows(self, rows: str) -> (int, int or None):
+        """Проверяет на валидность введенные начальную и конечную позицию для показа вакансий.
+        Иначе возвращает стандартные значения
+
+            Args:
+                rows (str): Строка с начальной и конечной позициями через пробел
+
+            Returns:
+                tuple[\n
+                    int: Начальная позиция\n
+                    int or None: Конечная позиция, если она меньше длины таблицы\n
+                ]
+        """
         rows = rows.split(' ')
         start = 0
         end = None
@@ -439,6 +654,19 @@ class DataSet:
         return start, end
 
     def __parse_query(self, query: str) -> (str, str, str):
+        """Проверяет на валидность введенный параметр фильтрации. Если нет, возвращает сообщение об
+        ошибке последним аргументом
+
+            Args:
+                query (str): Введенная строка с параметром фильтрации вида '{Столбец}: {Значение1, Значение2, ...}'
+
+            Returns:
+                tuple[\n
+                    str: Столбец для фильтрации\n
+                    str: Значение столбца для фильтрации\n
+                    str: Сообщение об ошибке\n
+                ]
+        """
         if query == "":
             return '', '', ''
         if ': ' not in query:
@@ -451,17 +679,42 @@ class DataSet:
         return f_name, f_value, ""
 
     def __clear_field(self, items: List[str]) -> Dict[str, List[str]]:
+        """Удаляет html теги и разделяет строки по \\n для всег полей вакансии и преобразует лист в поля для класса
+        Vacancy
+
+            Args:
+                items (List[str]): Считанная строка с данными для вакансии
+
+            Returns:
+                Dict[str, List[str]]: Словарь с полями для создания объекта Vacancy
+        """
         field = {}
         for column, row in zip(self.__header, items):
             field[column] = list(map(self.__delete_html, self.__split_by_newline(row)))
         return field
 
     def __delete_html(self, item: str) -> str:
+        """Удаляет html теги из строки.
+
+            Args:
+                item (str): Строка, из которой нужно удалить html
+
+            Returns:
+                str: Очищенная строка
+        """
         return " ".join(re.
                         sub(self.__RE_ALL_HTML, "", item)
                         .split())
 
     def __split_by_newline(self, item: str) -> List[str]:
+        """Разделяет строку по спецсимволу \\n.
+
+            Args:
+                item (str): Строка для разделения
+
+            Returns:
+                List[str]: Список строк, разделенных по \n
+        """
         return re.split(self.__RE_ALL_NEWLINE, item)
 
 
