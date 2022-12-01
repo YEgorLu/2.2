@@ -1,3 +1,8 @@
+from cProfile import Profile
+from pstats import Stats
+
+prof = Profile()
+prof.disable()
 import csv
 import datetime
 import os.path
@@ -8,15 +13,17 @@ from itertools import groupby
 from prettytable import PrettyTable
 import report
 
+prof.enable()
+
 
 class Salary:
     """Класс для представления зарплаты.
 
     Attributes:
-        salary_from (str): Нижняя граница з\п
-        salary_to (str): Верхняя граница з\п
+        salary_from (str): Нижняя граница з\\п
+        salary_to (str): Верхняя граница з\\п
         salary_currency (str): Валюта
-        salary_gross (str or None): З\п с учетом налогов или нет
+        salary_gross (str or None): З\\п с учетом налогов или нет
     """
     __currency_to_rub = {
         "AZN": 35.68,
@@ -36,10 +43,10 @@ class Salary:
         """Инициализирует объект Salary. Принимает значения в виде массивов из одного элемента, и берет этот элемент.
 
         Args:
-            salary_from (List[str]): Нижняя граница з\п
-            salary_to (List[str]): Верхняя граница з\п
+            salary_from (List[str]): Нижняя граница з\\п
+            salary_to (List[str]): Верхняя граница з\\п
             salary_currency (List[str]): Валюта
-            salary_gross (List[str] or None): З\п с учетом налогов или нет
+            salary_gross (List[str] or None): з\\п с учетом налогов или нет
         """
         self.salary_from = salary_from[0]
         self.salary_to = salary_to[0]
@@ -69,10 +76,10 @@ class Salary:
         return f'{s_from} - {s_to} ({Translators.Currency[self.salary_currency].value}) ({gross_str})'
 
     def __format_salary_amount(self, salary: int or float or str) -> str:
-        """Приводит з\п к виду xxx xxx xxx
+        """Приводит з\\п к виду xxx xxx xxx
 
             Returns:
-                str: з\п с округленная з\п с пробелами через каждые три знака
+                str: з\\п с округленная з\\п с пробелами через каждые три знака
         """
         return "{:,}".format(int(float(salary))).replace(',', ' ')
 
@@ -82,7 +89,7 @@ class VacancyForTable:
 
         Attributes:
             name (str): Название вакансии
-            salary (str): Строка с нижней и верхнец границами з\п и валютой
+            salary (str): Строка с нижней и верхнец границами з\\п и валютой
             area_name (str): Город
             date (str): Дата публикации в полном формате
             premium (str): Премиум-вакансия или нет
@@ -99,7 +106,7 @@ class VacancyForTable:
 
                     Args:
                         name (str): Название вакансии
-                        salary (str): Строка с нижней и верхнец границами з\п и валютой
+                        salary (str): Строка с нижней и верхнец границами з\\п и валютой
                         date (str): Дата публикации в полном формате
                         premium (str): Премиум-вакансия или нет
                         work_experience (str): Код требуемого опыта работу
@@ -154,10 +161,10 @@ class Vacancy:
                 description (List[str] or None): Описание вакансии
                 key_skills (List[str] or None): Навыки, необходимые для работы
                 employer_name (List[str] or None): Название компании-работодателя
-                salary_from (List[str]): Нижняя граница з\п
-                salary_to (List[str]): Верхняя граница з\п
+                salary_from (List[str]): Нижняя граница з\\п
+                salary_to (List[str]): Верхняя граница з\\п
                 salary_currency (List[str]): Валюта
-                salary_gross (List[str] or None): З\п с учетом налогов или нет
+                salary_gross (List[str] or None): з\\п с учетом налогов или нет
         """
         self.name = name[0]
         self.salary = Salary(salary_from, salary_to, salary_currency, salary_gross)
@@ -329,12 +336,12 @@ class InputConnect:
     @staticmethod
     def get_vacs(grouped: groupby, by_year: bool = True, need_div: bool = True, default: Dict = None) -> Tuple[
         Dict[str, int], Dict[str, int]]:
-        """Сортирует вакансии по количеству и по з\п и возвращает соответствующие словари
+        """Сортирует вакансии по количеству и по з\\п и возвращает соответствующие словари
 
             Args:
                 grouped (Iterable): Сгруппированный по городу или году итератор вакансий
                 by_year (bool): Да, если группировка по годам
-                need_div (bool): Да, если нужно вычислять среднюю з\п
+                need_div (bool): Да, если нужно вычислять среднюю з\\п
                 default (Dict): Значения, которые нужно добавить в начале. Используется для того, чтобы проставить года.
 
             Returns:
@@ -432,10 +439,12 @@ class InputConnect:
             if len(self._DataSet__table.rows) == 0:
                 print("Ничего не найдено")
                 return
+            prof.disable()
             if end is None:
                 print(self._DataSet__table.get_string(start=start, fields=fields))
             else:
                 print(self._DataSet__table.get_string(start=start, end=end, fields=fields))
+            prof.enable()
 
         def file(self) -> None:
             """Создает файлы graph.png, report.pdf, report.xlsx в папке report."""
@@ -480,7 +489,10 @@ class InputConnect:
             rep.generate_image()
             rep.generate_pdf(wkhtml_path)
 
-        return file if input('Вакансии или Статистика: ') == 'Статистика' else table
+        prof.disable()
+        a1 = input('Вакансии или Статистика: ')
+        prof.enable()
+        return file if a1 == 'Статистика' else table
 
 
 class DataSet:
@@ -497,6 +509,7 @@ class DataSet:
         self.vacancies_objects: List[Vacancy] = []
         self.__RE_ALL_HTML = re.compile(r'<.*?>')
         self.__RE_ALL_NEWLINE = re.compile(r'\n|\r\n')
+        self.__RE_WHITESPACES = re.compile(r'/\w+/')
         self.__header: List[str] = []
         self.__header_for_table = ['№', 'Название', 'Описание', 'Навыки',
                                    'Опыт работы', 'Премиум-вакансия', 'Компания',
@@ -511,7 +524,9 @@ class DataSet:
             Returns:
                 Iterator[Vacancy]: Итератор по вакансиям из csv файла
         """
+        prof.disable()
         self.file_name = input('Введите название файла: ')
+        prof.enable()
         with open(self.file_name, encoding="utf-8") as file:
             header = []
             file_reader = csv.reader(file)
@@ -598,9 +613,11 @@ class DataSet:
                 str: Сообщение об ошибке\n
                 ]
         """
+        prof.disable()
         filter_query = input('Введите параметр фильтрации: ')
         sort_query = input('Введите параметр сортировки: ')
         sort_reverse_query = input('Обратный порядок сортировки (Да / Нет): ')
+        prof.enable()
         sort_reverse = False if sort_reverse_query in ['Нет', ''] else True
         filter_name, filter_value, err_msg = self.__parse_query(filter_query)
 
@@ -608,9 +625,12 @@ class DataSet:
             err_msg = 'Параметр сортировки некорректен'
         if sort_reverse_query not in ['Нет', 'Да', '']:
             err_msg = 'Порядок сортировки задан некорректно'
-
-        start, end = self.__prepend_rows(input('Введите диапазон вывода: '))
-        fields = self.__prepend_fields(input('Введите требуемые столбцы: ').split(', '))
+        prof.disable()
+        a1 = input('Введите диапазон вывода: ')
+        a2 = input('Введите требуемые столбцы: ')
+        prof.enable()
+        start, end = self.__prepend_rows(a1)
+        fields = self.__prepend_fields(a2.split(', '))
 
         return filter_name, filter_value, sort_query, sort_reverse, start, end, fields, err_msg
 
@@ -702,9 +722,18 @@ class DataSet:
             Returns:
                 str: Очищенная строка
         """
+        self.del_html1(item)
+        self.del_html2(item)
+        return self.del_html3(item)
+    def del_html1(self, item):
         return " ".join(re.
                         sub(self.__RE_ALL_HTML, "", item)
                         .split())
+
+    def del_html2(self, item):
+        return re.sub(self.__RE_WHITESPACES , " ", re.sub(self.__RE_ALL_HTML, "", item))
+    def del_html3(self, item):
+        return " ".join(re.split(self.__RE_ALL_HTML, item))
 
     def __split_by_newline(self, item: str) -> List[str]:
         """Разделяет строку по спецсимволу \\n.
@@ -720,3 +749,10 @@ class DataSet:
 
 reader = DataSet()
 reader.read_csv()
+
+prof.disable()
+prof.dump_stats('mystats.stats')
+with open('mystats_output.txt', 'wt') as output:
+    stats = Stats('mystats.stats', stream=output)
+    stats.sort_stats('cumulative', 'time')
+    stats.print_stats()
