@@ -39,7 +39,7 @@ class Salary:
     }
 
     def __init__(self, salary_from: List[str], salary_to: List[str], salary_currency: List[str],
-                 salary_gross: List[str]):
+                 salary_gross: List[str] = None):
         """Инициализирует объект Salary. Принимает значения в виде массивов из одного элемента, и берет этот элемент.
 
         Args:
@@ -47,6 +47,15 @@ class Salary:
             salary_to (List[str]): Верхняя граница з\\п
             salary_currency (List[str]): Валюта
             salary_gross (List[str] or None): з\\п с учетом налогов или нет
+
+            >>> type(Salary(['10'], ['20'], ['RUR'], None)).__name__
+            'Salary'
+            >>> Salary(['10'], ['20'], ['RUR'], None).salary_from
+            '10'
+            >>> Salary(['10'], ['20'], ['RUR'], None).salary_to
+            '20'
+            >>> Salary(['10'], ['20'], ['RUR'], None).salary_currency
+            'RUR'
         """
         self.salary_from = salary_from[0]
         self.salary_to = salary_to[0]
@@ -165,6 +174,16 @@ class Vacancy:
                 salary_to (List[str]): Верхняя граница з\\п
                 salary_currency (List[str]): Валюта
                 salary_gross (List[str] or None): з\\п с учетом налогов или нет
+
+            >>> type(Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR'])).__name__
+            'Vacancy'
+            >>> type(Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR']).salary).__name__
+            'Salary'
+            >>> Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR']).name
+            'Препод'
+            >>> type(Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR'],\
+            ['True'], ['Опыт'], ['Описание'], ['Скилы'], ['URFU'], ['False']).key_skills).__name__
+            'list'
         """
         self.name = name[0]
         self.salary = Salary(salary_from, salary_to, salary_currency, salary_gross)
@@ -182,6 +201,23 @@ class Vacancy:
 
             Returns:
                 VacancyForTable: Преобразованная для таблицы вакансия
+
+            >>> type(Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR'],\
+            ['true'], ['noExperience'], ['Описание'], ['Скилы'], ['URFU'], ['false']).transform_for_table()).__name__
+            'VacancyForTable'
+            >>> Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR'],\
+            ['true'], ['noExperience'], ['Описание'], ['Скилы'], ['URFU'], ['false']).transform_for_table().work_experience
+            'Нет опыта'
+            >>> Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR'],\
+            ['true'], ['noExperience'], ['Описание'], ['Скилы'], ['URFU'], ['false']).transform_for_table().date
+            '01.12.2022'
+            >>> Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR'],\
+            ['true'], ['noExperience'], ['Описание'], ['Скилы'], ['URFU'], ['false']).transform_for_table().premium
+            'Да'
+            >>> type(Vacancy(['Препод'], ['Екб'], ['2022-12-01T00:00:00+0000'], ['10'], ['20'], ['RUR'],\
+            ['true'], ['noExperience'], ['Описание'], ['Скилы'], ['URFU'], ['false']).transform_for_table().salary).__name__
+            'str'
+
         """
         premium = 'Да' if self.premium.lower() == 'true' else 'Нет'
         salary = self.salary.format_salary()
@@ -329,12 +365,14 @@ class Utils:
         else:
             minutes -= diffMinutes
             hours -= diffHours
-        return years * 365 * 24 * 60 * 60 + int(months) * 30 * 24 * 60 * 60 + hours * 60 * 60 + minutes * 60 + int(seconds)
+        return years * 365 * 24 * 60 * 60 + int(months) * 30 * 24 * 60 * 60 + hours * 60 * 60 + minutes * 60 + int(
+            seconds)
 
     @staticmethod
     def date2(row: Vacancy):
         return datetime.datetime.strptime(row.published_at,
                                           '%Y-%m-%dT%H:%M:%S%z').timestamp()
+
     @staticmethod
     def date3(row: Vacancy):
         return row.published_at
@@ -628,6 +666,12 @@ class DataSet:
 
             Returns:
                 str: Строка не длиннее 100 символов + '...'
+
+            >>> DataSet._DataSet__trim_row('Очень длинная строка Очень длинная строка Очень длинная строка Очень' +\
+            'длинная строка Очень длинная строка Очень длинная строка')
+            'Очень длинная строка Очень длинная строка Очень длинная строка Оченьдлинная строка Очень длинная стр...'
+            >>> DataSet._DataSet__trim_row('Короткая строка')
+            'Короткая строка'
         """
         return row if len(row) <= 100 else row[:100] + '...'
 
@@ -707,7 +751,7 @@ class DataSet:
 
         return start, end
 
-    def __parse_query(self, query: str) -> (str, str, str):
+    def __parse_query(self, query: str) -> (str, str or List[str], str):
         """Проверяет на валидность введенный параметр фильтрации. Если нет, возвращает сообщение об
         ошибке последним аргументом
 
@@ -720,6 +764,15 @@ class DataSet:
                     str: Значение столбца для фильтрации\n
                     str: Сообщение об ошибке\n
                 ]
+
+            >>> DataSet()._DataSet__parse_query("Направильный формат")
+            ('', '', 'Формат ввода некорректен')
+            >>> DataSet()._DataSet__parse_query("Не существующее поле: 100")
+            ('', '', 'Параметр поиска некорректен')
+            >>> DataSet()._DataSet__parse_query("Навыки: Первый, Второй, Третий")
+            ('Навыки', ['Первый', 'Второй', 'Третий'], '')
+            >>> DataSet()._DataSet__parse_query("Оклад: 100000")
+            ('Оклад', '100000', '')
         """
         if query == "":
             return '', '', ''
