@@ -305,6 +305,41 @@ class Utils:
                        'Идентификатор валюты оклада', 'Название', 'Название региона', 'Компания', 'Описание']
 
     @staticmethod
+    def sort_date(row: Vacancy):
+        Utils.date1(row)
+        Utils.date3(row)
+        return Utils.date2(row)
+
+    r = re.compile(r"[-T:]")
+
+    @staticmethod
+    def date1(row: Vacancy):
+        (years, months, days, hours, minutes, seconds_and_diff) = re.split(Utils.r, row.published_at)
+        seconds = int(seconds_and_diff[:2])
+        plus = seconds_and_diff[3] == '+'
+        diff = seconds_and_diff[4:]
+        years = int(years) - 1970
+        diffHours = int(diff[:1])
+        diffMinutes = int(diff[2:])
+        minutes = int(minutes)
+        hours = int(hours)
+        if plus:
+            minutes += diffMinutes
+            hours += diffHours
+        else:
+            minutes -= diffMinutes
+            hours -= diffHours
+        return years * 365 * 24 * 60 * 60 + int(months) * 30 * 24 * 60 * 60 + hours * 60 * 60 + minutes * 60 + int(seconds)
+
+    @staticmethod
+    def date2(row: Vacancy):
+        return datetime.datetime.strptime(row.published_at,
+                                          '%Y-%m-%dT%H:%M:%S%z').timestamp()
+    @staticmethod
+    def date3(row: Vacancy):
+        return row.published_at
+
+    @staticmethod
     def sort(sort_name: str) -> Callable:
         """Метод, возвращающий функцию сортировки переданного столбца.
 
@@ -317,8 +352,7 @@ class Utils:
         sorts = {
             'Навыки': lambda row: len(row.key_skills),
             'Оклад': lambda row: row.salary.get_middle_salary_rub(),
-            'Дата публикации вакансии': lambda row: datetime.datetime.strptime(row.published_at,
-                                                                               '%Y-%m-%dT%H:%M:%S%z').timestamp(),
+            'Дата публикации вакансии': Utils.sort_date,
             'Опыт работы': lambda row: Translators.WorkExperienceSorted[row.experience_id],
             'Премиум-вакансия': lambda row: row.premium,
             'Идентификатор валюты оклада': lambda row: row.salary.salary_currency,
@@ -509,7 +543,7 @@ class DataSet:
         self.vacancies_objects: List[Vacancy] = []
         self.__RE_ALL_HTML = re.compile(r'<.*?>')
         self.__RE_ALL_NEWLINE = re.compile(r'\n|\r\n')
-        self.__RE_WHITESPACES = re.compile(r'/\w+/')
+        self.__RE_WHITESPACES = re.compile(r'/\s\s+/')
         self.__header: List[str] = []
         self.__header_for_table = ['№', 'Название', 'Описание', 'Навыки',
                                    'Опыт работы', 'Премиум-вакансия', 'Компания',
@@ -722,18 +756,10 @@ class DataSet:
             Returns:
                 str: Очищенная строка
         """
-        self.del_html1(item)
-        self.del_html2(item)
-        return self.del_html3(item)
-    def del_html1(self, item):
+
         return " ".join(re.
                         sub(self.__RE_ALL_HTML, "", item)
                         .split())
-
-    def del_html2(self, item):
-        return re.sub(self.__RE_WHITESPACES , " ", re.sub(self.__RE_ALL_HTML, "", item))
-    def del_html3(self, item):
-        return " ".join(re.split(self.__RE_ALL_HTML, item))
 
     def __split_by_newline(self, item: str) -> List[str]:
         """Разделяет строку по спецсимволу \\n.
