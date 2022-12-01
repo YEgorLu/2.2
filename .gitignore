@@ -1,5 +1,6 @@
 venv/
 report/
+csvs/
 __pycache__/
 .idea/
 .git/
