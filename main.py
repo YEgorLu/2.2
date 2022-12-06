@@ -1,8 +1,8 @@
 from cProfile import Profile
 from pstats import Stats
 
-prof = Profile()
-prof.disable()
+#prof = Profile()
+#prof.disable()
 import csv
 import datetime
 import os.path
@@ -12,8 +12,11 @@ from typing import List, Dict, Callable, Iterable, Tuple
 from itertools import groupby
 from prettytable import PrettyTable
 import report
+from report import Report
 
-prof.enable()
+to_show = 'Статистика'
+
+#prof.enable()
 
 
 class Salary:
@@ -403,7 +406,7 @@ class Utils:
 
 
 class InputConnect:
-    """Класс для чтения"""
+    """Класс для вывода данных"""
 
     @staticmethod
     def get_vacs(grouped: groupby, by_year: bool = True, need_div: bool = True, default: Dict = None) -> Tuple[
@@ -511,21 +514,18 @@ class InputConnect:
             if len(self._DataSet__table.rows) == 0:
                 print("Ничего не найдено")
                 return
-            prof.disable()
+            #prof.disable()
             if end is None:
                 print(self._DataSet__table.get_string(start=start, fields=fields))
             else:
                 print(self._DataSet__table.get_string(start=start, end=end, fields=fields))
-            prof.enable()
+            #prof.enable()
 
-        def file(self) -> None:
+        def file(self, prof_name: str, file_name: str = None):
             """Создает файлы graph.png, report.pdf, report.xlsx в папке report."""
-            csv_generator = read_csv(self)
+            csv_generator = read_csv(self) if file_name is None else read_csv(self, file_name)
             next(csv_generator)
-            prof_name = input('Введите название профессии: ')
-            wkhtml_path = input('Введите путь до wkghml.exe или пустую строку для стандартного пути: ')
-            wkhtml_path = os.path.abspath(
-                r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe' if wkhtml_path == "" else wkhtml_path)
+
             vacancies = [v for v in csv_generator]
             vacancies_with_prof = list(filter(lambda v: prof_name in v.name, vacancies))
             vacs_by_year = groupby(vacancies, lambda v: v.year)
@@ -555,16 +555,13 @@ class InputConnect:
             print('Доля вакансий по городам (в порядке убывания):',
                   vacancies_by_city_to_print)
 
-            rep = report.Report(salary_by_city_to_print, vacancies_by_city_to_print, salary_by_year, vacancies_by_year,
-                                profs_salary_by_year, professions_by_year, prof_name)
-            rep.generate_excel()
-            rep.generate_image()
-            rep.generate_pdf(wkhtml_path)
+            return salary_by_city_to_print, vacancies_by_city_to_print, salary_by_year, vacancies_by_year, \
+                   profs_salary_by_year, professions_by_year, prof_name
 
-        prof.disable()
-        a1 = input('Вакансии или Статистика: ')
-        prof.enable()
-        return file if a1 == 'Статистика' else table
+        # prof.disable()
+
+        # prof.enable()
+        return file if to_show == 'Статистика' else table
 
 
 class DataSet:
@@ -575,7 +572,9 @@ class DataSet:
             vacancies_objects (List[Vacancy]): Список считанных вакансий
     """
 
-    def __init__(self):
+    to_show = None
+
+    def __init__(self, _to_show: str):
         """Инициализирует объект DataSet."""
         self.file_name = None
         self.vacancies_objects: List[Vacancy] = []
@@ -588,17 +587,18 @@ class DataSet:
                                    'Оклад', 'Название региона', 'Дата публикации вакансии']
         self.__table = PrettyTable(self.__header_for_table,
                                    max_width=20, align='l', hrules=1)
+        self.to_show = _to_show
 
     @InputConnect.print_table
-    def read_csv(self) -> Vacancy or []:
+    def read_csv(self, file_name: str = None) -> Vacancy or []:
         """Генератор. Возвращает вакансии типа Vacancy для каждой строки из csv файла.
 
             Returns:
                 Iterator[Vacancy]: Итератор по вакансиям из csv файла
         """
-        prof.disable()
-        self.file_name = input('Введите название файла: ')
-        prof.enable()
+        #prof.disable()
+        self.file_name = input('Введите название файла: ') if file_name is None else file_name
+        #prof.enable()
         with open(self.file_name, encoding="utf-8") as file:
             header = []
             file_reader = csv.reader(file)
@@ -691,11 +691,11 @@ class DataSet:
                 str: Сообщение об ошибке\n
                 ]
         """
-        prof.disable()
+        #prof.disable()
         filter_query = input('Введите параметр фильтрации: ')
         sort_query = input('Введите параметр сортировки: ')
         sort_reverse_query = input('Обратный порядок сортировки (Да / Нет): ')
-        prof.enable()
+        #prof.enable()
         sort_reverse = False if sort_reverse_query in ['Нет', ''] else True
         filter_name, filter_value, err_msg = self.__parse_query(filter_query)
 
@@ -703,10 +703,10 @@ class DataSet:
             err_msg = 'Параметр сортировки некорректен'
         if sort_reverse_query not in ['Нет', 'Да', '']:
             err_msg = 'Порядок сортировки задан некорректно'
-        prof.disable()
+        #prof.disable()
         a1 = input('Введите диапазон вывода: ')
         a2 = input('Введите требуемые столбцы: ')
-        prof.enable()
+        #prof.enable()
         start, end = self.__prepend_rows(a1)
         fields = self.__prepend_fields(a2.split(', '))
 
@@ -826,12 +826,21 @@ class DataSet:
         return re.split(self.__RE_ALL_NEWLINE, item)
 
 
-reader = DataSet()
-reader.read_csv()
+# reader = DataSet('Статистика')
+# #prof.disable()
+# prof_name = input('Введите название профессии: ')
+# wkhtml_path = input('Введите путь до wkghml.exe или пустую строку для стандартного пути: ')
+# #prof.enable()
+# wkhtml_path = os.path.abspath(
+#     r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe' if wkhtml_path == "" else wkhtml_path)
+# rep = Report(*reader.read_csv(prof_name=prof_name))
+# rep.generate_excel()
+# rep.generate_image()
+# rep.generate_pdf(wkhtml_path)
 
-prof.disable()
-prof.dump_stats('mystats.stats')
-with open('mystats_output.txt', 'wt') as output:
-    stats = Stats('mystats.stats', stream=output)
-    stats.sort_stats('cumulative', 'time')
-    stats.print_stats()
+#prof.disable()
+#prof.dump_stats('mystats.stats')
+# with open('mystats_output.txt', 'wt') as output:
+#     stats = Stats('mystats.stats', stream=output)
+#     stats.sort_stats('cumulative', 'time')
+#     stats.print_stats()
