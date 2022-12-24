@@ -5,3 +5,5 @@ __pycache__/
 .idea/
 .git/
 *.csv
+/muted_csvs/
+/all_csvs/

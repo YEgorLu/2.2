@@ -53,7 +53,6 @@ class Report:
         ws.title = "Статистика по годам"
         ws.append(self.first_table_header)
         self.__style_header(ws)
-
         for t in self.first_table:
             ws.append(t)
         self.__style_cells(ws)

@@ -38,7 +38,7 @@ if __name__ == '__main__':
         wkhtml_path = os.path.abspath(
             r'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe' if wkhtml_path == "" else wkhtml_path)
         for file in os.listdir(os.path.join('.', csvs_dir)):
-            files.append(os.path.join('.', 'csvs', file))
+            files.append(os.path.join('.', csvs_dir, file))
 
         reader = partial(do_work, prof_name=prof_name)
         futures = [executor.submit(reader, file_name) for file_name in files]

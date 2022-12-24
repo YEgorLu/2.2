@@ -1,8 +1,8 @@
 from cProfile import Profile
 from pstats import Stats
 
-#prof = Profile()
-#prof.disable()
+# prof = Profile()
+# prof.disable()
 import csv
 import datetime
 import os.path
@@ -16,7 +16,8 @@ from report import Report
 
 to_show = 'Статистика'
 
-#prof.enable()
+
+# prof.enable()
 
 
 class Salary:
@@ -514,28 +515,33 @@ class InputConnect:
             if len(self._DataSet__table.rows) == 0:
                 print("Ничего не найдено")
                 return
-            #prof.disable()
+            # prof.disable()
             if end is None:
                 print(self._DataSet__table.get_string(start=start, fields=fields))
             else:
                 print(self._DataSet__table.get_string(start=start, end=end, fields=fields))
-            #prof.enable()
+            # prof.enable()
 
-        def file(self, prof_name: str, file_name: str = None):
+        def file(self, prof_name: str = None, file_name: str = None):
             """Создает файлы graph.png, report.pdf, report.xlsx в папке report."""
             csv_generator = read_csv(self) if file_name is None else read_csv(self, file_name)
             next(csv_generator)
 
             vacancies = [v for v in csv_generator]
-            vacancies_with_prof = list(filter(lambda v: prof_name in v.name, vacancies))
             vacs_by_year = groupby(vacancies, lambda v: v.year)
-            profs_by_year = groupby(vacancies_with_prof, lambda v: v.year)
             vacs_by_city = groupby(vacancies, lambda v: v.area_name)
 
+            vacancies_with_prof = None
+            profs_by_year = None
+            professions_by_year, profs_salary_by_year = None, None
+
             vacancies_by_year, salary_by_year = InputConnect.get_vacs(vacs_by_year)
-            professions_by_year, profs_salary_by_year = InputConnect.get_vacs(profs_by_year,
-                                                                              default={int(k): 0 for k in
-                                                                                       vacancies_by_year})
+            if prof_name is not None:
+                vacancies_with_prof = list(filter(lambda v: prof_name in v.name, vacancies))
+                profs_by_year = groupby(vacancies_with_prof, lambda v: v.year)
+                professions_by_year, profs_salary_by_year = InputConnect.get_vacs(profs_by_year,
+                                                                                  default={int(k): 0 for k in
+                                                                                           vacancies_by_year})
 
             vacancies_by_city, salary_by_city = InputConnect.get_vacs(vacs_by_city, False, False)
             InputConnect.clear_by_city(salary_by_city, vacancies_by_city, len(vacancies))
@@ -546,17 +552,19 @@ class InputConnect:
             salary_by_city_to_print = {k: v for k, v in
                                        sorted(salary_by_city.items(), key=lambda item: item[1], reverse=True)[:10]}
 
-            print('Динамика уровня зарплат по годам:', salary_by_year)
-            print('Динамика количества вакансий по годам:', vacancies_by_year)
-            print('Динамика уровня зарплат по годам для выбранной профессии:', profs_salary_by_year)
-            print('Динамика количества вакансий по годам для выбранной профессии:', professions_by_year)
-            print('Уровень зарплат по городам (в порядке убывания):',
-                  salary_by_city_to_print)
-            print('Доля вакансий по городам (в порядке убывания):',
-                  vacancies_by_city_to_print)
+            # print('Динамика уровня зарплат по годам:', salary_by_year)
+            # print('Динамика количества вакансий по годам:', vacancies_by_year)
+            # print('Динамика уровня зарплат по годам для выбранной профессии:', profs_salary_by_year)
+            # print('Динамика количества вакансий по годам для выбранной профессии:', professions_by_year)
+            # print('Уровень зарплат по городам (в порядке убывания):',
+            # salary_by_city_to_print)
+            # print('Доля вакансий по городам (в порядке убывания):',
+            # vacancies_by_city_to_print)
 
-            return salary_by_city_to_print, vacancies_by_city_to_print, salary_by_year, vacancies_by_year, \
-                   profs_salary_by_year, professions_by_year, prof_name
+            return salary_by_city_to_print, vacancies_by_city_to_print,\
+                   salary_by_year, vacancies_by_year if prof_name is None else \
+                salary_by_city_to_print, vacancies_by_city_to_print, salary_by_year,\
+                   vacancies_by_year, profs_salary_by_year, professions_by_year, prof_name
 
         # prof.disable()
 
@@ -596,9 +604,9 @@ class DataSet:
             Returns:
                 Iterator[Vacancy]: Итератор по вакансиям из csv файла
         """
-        #prof.disable()
+        # prof.disable()
         self.file_name = input('Введите название файла: ') if file_name is None else file_name
-        #prof.enable()
+        # prof.enable()
         with open(self.file_name, encoding="utf-8") as file:
             header = []
             file_reader = csv.reader(file)
@@ -691,11 +699,11 @@ class DataSet:
                 str: Сообщение об ошибке\n
                 ]
         """
-        #prof.disable()
+        # prof.disable()
         filter_query = input('Введите параметр фильтрации: ')
         sort_query = input('Введите параметр сортировки: ')
         sort_reverse_query = input('Обратный порядок сортировки (Да / Нет): ')
-        #prof.enable()
+        # prof.enable()
         sort_reverse = False if sort_reverse_query in ['Нет', ''] else True
         filter_name, filter_value, err_msg = self.__parse_query(filter_query)
 
@@ -703,10 +711,10 @@ class DataSet:
             err_msg = 'Параметр сортировки некорректен'
         if sort_reverse_query not in ['Нет', 'Да', '']:
             err_msg = 'Порядок сортировки задан некорректно'
-        #prof.disable()
+        # prof.disable()
         a1 = input('Введите диапазон вывода: ')
         a2 = input('Введите требуемые столбцы: ')
-        #prof.enable()
+        # prof.enable()
         start, end = self.__prepend_rows(a1)
         fields = self.__prepend_fields(a2.split(', '))
 
@@ -825,7 +833,6 @@ class DataSet:
         """
         return re.split(self.__RE_ALL_NEWLINE, item)
 
-
 # reader = DataSet('Статистика')
 # #prof.disable()
 # prof_name = input('Введите название профессии: ')
@@ -838,8 +845,8 @@ class DataSet:
 # rep.generate_image()
 # rep.generate_pdf(wkhtml_path)
 
-#prof.disable()
-#prof.dump_stats('mystats.stats')
+# prof.disable()
+# prof.dump_stats('mystats.stats')
 # with open('mystats_output.txt', 'wt') as output:
 #     stats = Stats('mystats.stats', stream=output)
 #     stats.sort_stats('cumulative', 'time')
