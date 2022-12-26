@@ -45,8 +45,6 @@ for date in df['date'].unique():
     year = date[:4]
     month = date[5:7]
     currs[date] = valutes.get_valutes(month, year)
-
-
 # ----------------------------------------------------------------------------------------------------------------------
 
 def multiply_currency(row):
@@ -70,7 +68,7 @@ df['salary'] = df.apply(axis=1, func=multiply_currency)
 df = df[['name', 'salary', 'area_name', 'published_at', 'date']]
 # ----------------------------------------------------------------------------------------------------------------------
 
-
+# Отбор вакансий с подходящими prof_name и region_name, подсчет средней з\п и количества за года -----------------------
 df_prof_area = df[df.name.str.contains(prof_name) & df.area_name.str.contains(region_name)].reset_index(
     drop=True)
 df_prof_area['year'] = df_prof_area['date'].str[:4]
@@ -81,8 +79,9 @@ for year in df['date'].str[:4].unique():
     if year not in prof_area.index:
         prof_area.loc[year] = 0
 prof_area = prof_area.sort_index()
+# ----------------------------------------------------------------------------------------------------------------------
 
-
+# Подсчет средней з\п и количества вакансий по городам, составление топ10 городов --------------------------------------
 df_area = df[['salary', 'area_name']].groupby('area_name').agg(['mean', 'count'])['salary'].dropna()
 df_area['mean'] = df_area['mean'].map(round)
 count_sum = df_area['count'].sum()
@@ -90,15 +89,18 @@ df_area['count'] = df_area['count'] / count_sum
 df_area = df_area[df_area['count'] > 0.01]
 top_salary = df_area[['mean']].sort_values(by='mean', ascending=False).iloc[:10]
 top_count = df_area[['count']].sort_values(by='count', ascending=False).iloc[:10]
+# ----------------------------------------------------------------------------------------------------------------------
 
-
+# Создание графиков ----------------------------------------------------------------------------------------------------
 fig, axs = plt.subplots(1, 2, layout='tight', figsize=[10, 5])
 
+# Круговая диаграмма
 ax = axs[1]
 data = {'Другие': 1 - top_count['count'].sum(), **{city: top_count['count'].loc[city] for city in top_count.index}}
 ax.pie(list(data.values()), labels=list(data.keys()), textprops={'fontsize': 6})
 ax.set_title('Доля вакансий по городам', fontsize=20)
 
+# Горизонтальная диаграмма
 ax = axs[0]
 y_pos = range(len(top_salary.index.tolist()))
 cities = top_salary.index.tolist()
@@ -118,6 +120,7 @@ ax.grid(axis='x')
 save_path = pth.relpath(pth.join('report', 'city_graph.png'))
 if check_file('png', save_path):
     plt.savefig(save_path)
+# ----------------------------------------------------------------------------------------------------------------------
 
 # Создание pdf с графиками и таблицей ----------------------------------------------------------------------------------
 env = Environment(loader=FileSystemLoader('.'))
