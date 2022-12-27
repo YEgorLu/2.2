@@ -7,3 +7,4 @@ __pycache__/
 *.csv
 /muted_csvs/
 /all_csvs/
+*.db
